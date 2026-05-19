@@ -35,6 +35,15 @@ export type SeedSelector = (element: ElementForSeeding) => boolean;
  * points.
  */
 export function defaultSeedSelector(element: ElementForSeeding): boolean {
+  // Fathom row 5.0.23: test-fixture functions are not capability-unit
+  // seeds. Top-level functions in test files (.test.ts, /tests/, etc.)
+  // get `exported: true` from the analyzer's normal exported-symbol
+  // detection — but the L3 clusterer excludes their paths (5.0.14 /
+  // 5.0.28 c), so they have no `clusterByElement` mapping at L5. Walking
+  // their closures produces empty scenarios (every edge skipped — source
+  // cluster undefined). Cleanest fix: reject at the seed boundary using
+  // the unified `test-fixture` L1 stereotype primitive (5.0.34).
+  if (element.methodStereotype === "test-fixture") return false;
   if (element.exported === true) return true;
   const st = element.methodStereotype;
   return st === "controller" || st === "command" || st === "composition-root";

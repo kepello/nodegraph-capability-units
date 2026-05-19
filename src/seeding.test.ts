@@ -70,6 +70,36 @@ test("defaultSeedSelector — exported: false + non-seed stereotype does not qua
   );
 });
 
+test("defaultSeedSelector — methodStereotype 'test-fixture' is rejected even when exported (Fathom 5.0.23)", () => {
+  // Round-5 F2 / round-6 follow-up: 939 of 939 L5 scenarios had zero
+  // steps. Root cause was NOT the L5 algorithm — it walks cross-cluster
+  // call edges correctly. Real cause: top-level functions in test files
+  // (.test.ts, /tests/, /fixtures/, etc.) get `exported: true` by the
+  // fathom-cli L2 element filter, so they become seeds AND produce L2
+  // capability units. But L3 clustering EXCLUDES test-file paths (5.0.14
+  // + 5.0.28c), so the seed's `clusterByElement` lookup returns
+  // `undefined` for every walked edge → L5 skips every edge → empty
+  // scenarios.
+  //
+  // Fix: defaultSeedSelector rejects `test-fixture` stereotype even
+  // when `exported: true`. Matches the unified `test-fixture` L1
+  // primitive shipped in 5.0.34 (single signal carries fixture-ness
+  // across rating / detection / now L2 seeding).
+  assert.equal(
+    defaultSeedSelector(
+      el({ exported: true, methodStereotype: "test-fixture" }),
+    ),
+    false,
+  );
+});
+
+test("defaultSeedSelector — methodStereotype 'test-fixture' is rejected without exported (Fathom 5.0.23)", () => {
+  assert.equal(
+    defaultSeedSelector(el({ methodStereotype: "test-fixture" })),
+    false,
+  );
+});
+
 test("defaultSeedSelector — exported true overrides non-seed stereotype", () => {
   // Mixed signals — exported wins even if stereotype is non-seed.
   assert.equal(
