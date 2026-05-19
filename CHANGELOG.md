@@ -2,6 +2,19 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] — 2026-05-18
+
+Adds — `composition-root` method stereotype recognized as a seed by `defaultSeedSelector`. Closes Fathom row 5.0.29.
+
+### Changed
+
+- `defaultSeedSelector` returns true when `element.methodStereotype === "composition-root"` (in addition to the existing `controller` / `command`). Composition roots are externally-callable entry points by definition (the L1 `composition-root` stereotype fires on small linear bodies wiring many cross-class collaborators — `composeFathomMcp`, `defineMemoizedDerivation`, etc.).
+- Round-5 pilot F15 surfaced `composeFathomMcp` returning null from `code.capability_unit_for(...)` despite being a `library-export` composition-root. The L2 surface now correctly seeds on it.
+
+### Tests
+
+- 38/38 tests pass; 1 new regression test for composition-root seed.
+
 ## [0.1.0] — 2026-05-14
 
 Initial publish. Second layer of the workspace Layered Code Abstraction arc (Fathom work row `l2-capability-unit-overlay` 3.1.2, per `docs/code_abstraction.md` L2).

@@ -42,6 +42,16 @@ test("defaultSeedSelector — methodStereotype 'command' qualifies", () => {
   );
 });
 
+test("defaultSeedSelector — methodStereotype 'composition-root' qualifies (Fathom 5.0.29)", () => {
+  // Round-5 F15: composeFathomMcp is composition-root and library-export
+  // but L2 missed it as a seed. Fix: composition-root is now an
+  // externally-callable seed alongside controller/command.
+  assert.equal(
+    defaultSeedSelector(el({ methodStereotype: "composition-root" })),
+    true,
+  );
+});
+
 test("defaultSeedSelector — non-seed stereotype does not qualify", () => {
   assert.equal(
     defaultSeedSelector(el({ methodStereotype: "accessor-shaped" })),
