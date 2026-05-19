@@ -9,7 +9,7 @@
  *   - `uses`     → shared element the closure references
  */
 
-import type { Edge, GraphLayer, Node } from "@kepello/nodegraph-core";
+import type { Edge, GraphLayer, GraphMutator, Node } from "@kepello/nodegraph-core";
 import {
   CAPABILITY_UNIT_DOMAIN,
   CAPABILITY_UNIT_INDEXES,
@@ -27,21 +27,16 @@ import {
 } from "./types.js";
 
 export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
+  private readonly mutator: GraphMutator<typeof CAPABILITY_UNIT_DOMAIN>;
+
   constructor(private readonly graph: GraphLayer) {
-    try {
-      this.graph.registerOverlay({
-        domain: CAPABILITY_UNIT_DOMAIN,
-        metadataSchema: CAPABILITY_UNIT_METADATA_SCHEMA,
-        indexes: CAPABILITY_UNIT_INDEXES,
-      });
-    } catch (err) {
-      if (
-        !(err instanceof Error) ||
-        !err.message.includes("already registered for domain")
-      ) {
-        throw err;
-      }
-    }
+    // Per Fathom row 5.0.42: registerOverlay returns the domain-scoped
+    // mutator; this overlay holds it for all substrate writes.
+    this.mutator = this.graph.registerOverlay({
+      domain: CAPABILITY_UNIT_DOMAIN,
+      metadataSchema: CAPABILITY_UNIT_METADATA_SCHEMA,
+      indexes: CAPABILITY_UNIT_INDEXES,
+    });
   }
 
   insertUnit(input: CapabilityUnitInput): CapabilityUnitNode {
@@ -63,7 +58,7 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
     );
     let node: Node;
     if (existing === undefined) {
-      node = this.graph.insertNode({
+      node = this.mutator.insertNode({
         domain: CAPABILITY_UNIT_DOMAIN,
         naturalKey: input.unitId,
         contentHash: input.contentHash,
@@ -72,7 +67,7 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
     } else if (existing.contentHash === input.contentHash) {
       node = existing;
     } else {
-      node = this.graph.supersedeNode(existing.id, {
+      node = this.mutator.supersedeNode(existing.id, {
         contentHash: input.contentHash,
         metadata: metadata as unknown,
       });
@@ -87,18 +82,18 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
         e.targetId === input.entryElementId ||
         e.targetRef === input.entryElementId;
       if (matches) hasCorrectEntry = true;
-      else this.graph.tombstoneEdge(e.id);
+      else this.mutator.tombstoneEdge(e.id);
     }
     if (!hasCorrectEntry) {
       const byId = this.graph.getNodeById(input.entryElementId);
       if (byId !== undefined) {
-        this.graph.insertEdge({
+        this.mutator.insertEdge({
           sourceId: node.id,
           targetId: input.entryElementId,
           type: ENTRY_EDGE_TYPE,
         });
       } else {
-        this.graph.insertEdge({
+        this.mutator.insertEdge({
           sourceId: node.id,
           targetRef: input.entryElementId,
           type: ENTRY_EDGE_TYPE,
@@ -139,9 +134,9 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
       if (existingTargets.has(target)) continue;
       const byId = this.graph.getNodeById(target);
       if (byId !== undefined) {
-        this.graph.insertEdge({ sourceId, targetId: target, type: edgeType });
+        this.mutator.insertEdge({ sourceId, targetId: target, type: edgeType });
       } else {
-        this.graph.insertEdge({ sourceId, targetRef: target, type: edgeType });
+        this.mutator.insertEdge({ sourceId, targetRef: target, type: edgeType });
       }
     }
   }
@@ -166,7 +161,7 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
           throw new Error(`Capability unit ${unitId} has no metadata`);
         }
         const next: CapabilityUnitMetadata = { ...prior, displayName };
-        const node = this.graph.supersedeNode(existing.id, {
+        const node = this.mutator.supersedeNode(existing.id, {
           contentHash: existing.contentHash,
           metadata: next as unknown,
         });
@@ -188,7 +183,7 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
           unitId,
         );
         if (existing === undefined) return;
-        this.graph.tombstoneNode(existing.id);
+        this.mutator.tombstoneNode(existing.id);
       },
     );
   }
