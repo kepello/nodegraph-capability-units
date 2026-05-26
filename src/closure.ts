@@ -32,6 +32,23 @@ export interface ComputeCapabilityUnitsInput {
    * `controller` / `command`.
    */
   seedSelector?: SeedSelector;
+  /**
+   * Inverse-indexed `overrides` edges: interface/abstract method
+   * element id → list of impl method element ids that override it.
+   * Threaded by callers from substrate `overrides` edges via a
+   * `groupBy(targetId)` pass over `queryEdges({ type: "overrides" })`.
+   *
+   * Fathom row `l2-overrides-edge-first-class` (3.1.2.1 P3): during
+   * BFS, when visiting an element E, the walker enqueues both:
+   *   1. Forward `calls` targets (existing behavior)
+   *   2. Any element ids in `overridesByTarget.get(E)` (new)
+   *
+   * When E is an interface method, this expands the closure to include
+   * all concrete impls — closing the visibility gap that motivated the
+   * row. When E is not an interface method (no entry in the map), the
+   * walker is unchanged.
+   */
+  overridesByTarget?: ReadonlyMap<string, readonly string[]>;
 }
 
 export interface ComputedUnit {
@@ -70,17 +87,35 @@ export function computeCapabilityUnits(
   const elementsById = new Map<string, ElementForSeeding>();
   for (const e of input.elements) elementsById.set(e.id, e);
 
-  // Build forward adjacency (source → set of targets).
+  // Build forward adjacency (source → set of targets). Combines two
+  // sources:
+  //   1. `callEdges` — the input call graph (calls + callsMethod from
+  //      the substrate, threaded by the caller).
+  //   2. `overridesByTarget` — when visiting an interface method, also
+  //      visit all impl methods that override it. Conceptually a virtual
+  //      "calls" edge from the interface method to each impl, expanding
+  //      the closure to include polymorphic dispatch targets. Fathom
+  //      row `l2-overrides-edge-first-class` (3.1.2.1 P3).
   const adj = new Map<string, Set<string>>();
-  for (const edge of input.callEdges) {
-    if (edge.source === edge.target) continue; // skip self-loops
-    if (!elementsById.has(edge.source) || !elementsById.has(edge.target)) continue;
-    let targets = adj.get(edge.source);
+  const addAdjacency = (source: string, target: string) => {
+    if (source === target) return;
+    if (!elementsById.has(source) || !elementsById.has(target)) return;
+    let targets = adj.get(source);
     if (targets === undefined) {
       targets = new Set();
-      adj.set(edge.source, targets);
+      adj.set(source, targets);
     }
-    targets.add(edge.target);
+    targets.add(target);
+  };
+  for (const edge of input.callEdges) {
+    addAdjacency(edge.source, edge.target);
+  }
+  if (input.overridesByTarget !== undefined) {
+    for (const [interfaceMethodId, implMethodIds] of input.overridesByTarget) {
+      for (const implMethodId of implMethodIds) {
+        addAdjacency(interfaceMethodId, implMethodId);
+      }
+    }
   }
 
   // Identify seeds.

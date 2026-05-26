@@ -49,3 +49,14 @@ export {
   CapabilityUnitOverlayImpl,
   makeCapabilityUnitOverlay,
 } from "./overlay.js";
+
+// Workspace-aggregate queries (L2 count + coverage)
+export {
+  computeL2Coverage,
+  countL2Units,
+  type L2CountInput,
+  type L2CountResult,
+  type L2CoverageInput,
+  type L2CoveragePerLanguage,
+  type L2CoverageResult,
+} from "./queries.js";

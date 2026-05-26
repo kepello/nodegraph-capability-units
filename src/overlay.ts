@@ -211,8 +211,11 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
       if (byRef.length === 0) return undefined;
       edges.push(...byRef);
     }
+    // Per Fathom row `perf-getbyid-consumer-migrations` (5.0.1.2.3.1):
+    // batch the per-edge source-node hydration into one IN-clause query.
+    const sourceNodes = this.graph.getNodesByIds(edges.map((e) => e.sourceId));
     for (const edge of edges) {
-      const node = this.graph.getNodeById(edge.sourceId);
+      const node = sourceNodes.get(edge.sourceId);
       if (
         node !== undefined &&
         node.lifecycleState === "live" &&
@@ -250,26 +253,27 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
 
   unitsThatUse(elementId: string): CapabilityUnitNode[] {
     // Incoming `uses` edges; resolved first, then natural-key form.
-    const seen = new Set<string>();
+    // Per Fathom row `perf-getbyid-consumer-migrations` (5.0.1.2.3.1):
+    // collect all candidate source-ids first, batch-hydrate once via
+    // `getNodesByIds`, then filter. Pre-fix: one SQL per edge. Post-fix:
+    // one IN-clause query for the union.
+    const allEdges: Edge[] = [
+      ...this.graph.edgesTo(elementId, { type: USES_EDGE_TYPE }),
+      ...this.graph.queryEdges({ targetRef: elementId, type: USES_EDGE_TYPE }),
+    ];
+    const candidateIds = Array.from(new Set(allEdges.map((e) => e.sourceId)));
+    const nodes = this.graph.getNodesByIds(candidateIds);
     const out: CapabilityUnitNode[] = [];
-    const collect = (edges: readonly Edge[]) => {
-      for (const edge of edges) {
-        if (seen.has(edge.sourceId)) continue;
-        seen.add(edge.sourceId);
-        const node = this.graph.getNodeById(edge.sourceId);
-        if (
-          node !== undefined &&
-          node.lifecycleState === "live" &&
-          node.domain === CAPABILITY_UNIT_DOMAIN
-        ) {
-          out.push(asUnit(node));
-        }
+    for (const id of candidateIds) {
+      const node = nodes.get(id);
+      if (
+        node !== undefined &&
+        node.lifecycleState === "live" &&
+        node.domain === CAPABILITY_UNIT_DOMAIN
+      ) {
+        out.push(asUnit(node));
       }
-    };
-    collect(this.graph.edgesTo(elementId, { type: USES_EDGE_TYPE }));
-    collect(
-      this.graph.queryEdges({ targetRef: elementId, type: USES_EDGE_TYPE }),
-    );
+    }
     return out;
   }
 }
