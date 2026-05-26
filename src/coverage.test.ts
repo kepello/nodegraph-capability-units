@@ -92,9 +92,19 @@ function buildSubstrate(specs: readonly ElementSpec[]): BuiltSubstrate {
 
 /**
  * Build a methodStereotype lookup function backed by the substrate's
- * memoizedDerivations. Mirrors the wiring fathom-mcp/compose.ts uses in
- * production — caller threads this from the live graph; the algorithm
- * itself is callback-agnostic.
+ * memoizedDerivations. Test-fixture-local wiring; the algorithm itself
+ * is callback-agnostic.
+ *
+ * NOTE (Fathom 2.4.7 audit): production wires this callback through
+ * `readVersionTolerantMemoizedDerivation` from
+ * `@kepello/nodegraph-core` so post-version-bump keys (e.g.
+ * `methodStereotype:v2`) resolve. This fixture writes unversioned
+ * keys in `buildSubstrate` and reads them back here unversioned —
+ * the fixture's substrate data shape is under the test's own
+ * control, so the version-tolerance concern doesn't apply. If a
+ * future test needs to mirror the production wiring (verify the
+ * version-tolerant resolution path end-to-end), import the helper
+ * here and use it instead.
  */
 function stereoLookupFromMetadata(graph: GraphLayer): (id: string) => string | null {
   return (id: string) => {
