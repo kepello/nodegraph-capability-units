@@ -97,7 +97,7 @@ function buildSubstrate(specs: readonly ElementSpec[]): BuiltSubstrate {
  * is callback-agnostic.
  *
  * NOTE (Fathom 2.4.7 audit): production wires this callback through
- * `readVersionTolerantMemoizedDerivation` from
+ * `readMemoizedValue` from
  * `@kepello/nodegraph-core` so post-version-bump keys (e.g.
  * `methodStereotype:v2`) resolve. This fixture writes unversioned
  * keys in `buildSubstrate` and reads them back here unversioned —
