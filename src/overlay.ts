@@ -15,6 +15,7 @@ import {
   CAPABILITY_UNIT_INDEXES,
   CAPABILITY_UNIT_METADATA_KIND,
   CAPABILITY_UNIT_METADATA_SCHEMA,
+  CAPABILITY_UNIT_SCHEMA_VERSION,
 } from "./schema.js";
 import {
   COMPOSES_EDGE_TYPE,
@@ -34,6 +35,7 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
     // mutator; this overlay holds it for all substrate writes.
     this.mutator = this.graph.registerOverlay({
       domain: CAPABILITY_UNIT_DOMAIN,
+      schemaVersion: CAPABILITY_UNIT_SCHEMA_VERSION,
       metadataSchema: CAPABILITY_UNIT_METADATA_SCHEMA,
       indexes: CAPABILITY_UNIT_INDEXES,
     });

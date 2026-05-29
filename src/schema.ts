@@ -8,6 +8,13 @@ import type { IndexSpec, MetadataSchema } from "@kepello/nodegraph-core";
 
 export const CAPABILITY_UNIT_DOMAIN = "capability-unit";
 
+/**
+ * Per-overlay schema version (substrate 1.12.2). Part of this domain's
+ * public contract; every registrant passes it. Bump when
+ * `CAPABILITY_UNIT_METADATA_SCHEMA` changes shape; V1 baseline is `1`.
+ */
+export const CAPABILITY_UNIT_SCHEMA_VERSION = 1;
+
 export const CAPABILITY_UNIT_METADATA_KIND = "capability-unit";
 
 export const CAPABILITY_UNIT_METADATA_SCHEMA: MetadataSchema = {

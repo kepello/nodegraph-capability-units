@@ -50,6 +50,7 @@ type ElementSpec = {
 function buildSubstrate(specs: readonly ElementSpec[]): BuiltSubstrate {
   const graph = new GraphLayerImpl(new InMemoryBackend());
   graph.registerOverlay({
+    schemaVersion: 1,
     domain: "analysis",
     metadataSchema: {
       kind: "analysis-element",
@@ -279,6 +280,7 @@ test("computeL2Coverage — resolves stale UUIDs in unit metadata after element 
   // naturalKey). Coverage must still see the entry as L2-visible.
   const graph = new GraphLayerImpl(new InMemoryBackend());
   graph.registerOverlay({
+    schemaVersion: 1,
     domain: "analysis",
     metadataSchema: {
       kind: "analysis-element",
