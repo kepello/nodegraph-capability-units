@@ -52,6 +52,27 @@ test("defaultSeedSelector — methodStereotype 'composition-root' qualifies (Fat
   );
 });
 
+test("defaultSeedSelector — methodStereotype 'non-void-command' qualifies (Fathom r2 tail F6)", () => {
+  // `@kepello/nodegraph-analysis`'s r2 side-effect derivation split
+  // `command` into finer-grained variants — `non-void-command` (a
+  // side-effecting method that also returns a value) is a command-family
+  // entry point by construction, same as plain `command`.
+  assert.equal(
+    defaultSeedSelector(el({ methodStereotype: "non-void-command" })),
+    true,
+  );
+});
+
+test("defaultSeedSelector — methodStereotype 'collaborational-command' qualifies (Fathom r2 tail F6)", () => {
+  // Same rationale as `non-void-command` — `collaborational-command`
+  // (a side effect reached only via descent through a collaborator) is
+  // still a command-family entry point.
+  assert.equal(
+    defaultSeedSelector(el({ methodStereotype: "collaborational-command" })),
+    true,
+  );
+});
+
 test("defaultSeedSelector — non-seed stereotype does not qualify", () => {
   assert.equal(
     defaultSeedSelector(el({ methodStereotype: "accessor-shaped" })),

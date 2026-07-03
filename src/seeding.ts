@@ -19,7 +19,8 @@ export type SeedSelector = (element: ElementForSeeding) => boolean;
  * Default hybrid seed selector. An element is a seed iff:
  *   - `exported === true` (boundary-visible from outside the
  *     containing artifact), OR
- *   - `methodStereotype` ∈ `{controller, command, composition-root}`
+ *   - `methodStereotype` ∈ `{controller, command, composition-root,
+ *     non-void-command, collaborational-command}`
  *     (from `@kepello/nodegraph-analysis` L1 derivation set).
  *
  * Returns `false` for elements lacking both signals — the typical
@@ -33,6 +34,12 @@ export type SeedSelector = (element: ElementForSeeding) => boolean;
  * ARE externally-callable seeds by definition; missing them leaves
  * the L2 surface visibly incomplete on the workspace's actual entry
  * points.
+ *
+ * Fathom row 3.1.1.1.9.3.r2 tail F6: `non-void-command` and
+ * `collaborational-command` added 2026-07-03. The r2 side-effect
+ * derivation split plain `command` into these finer-grained variants —
+ * both are command-family entry points by construction, same as
+ * `command`.
  */
 export function defaultSeedSelector(element: ElementForSeeding): boolean {
   // Fathom row 5.0.23: test-fixture functions are not capability-unit
@@ -46,5 +53,11 @@ export function defaultSeedSelector(element: ElementForSeeding): boolean {
   if (element.methodStereotype === "test-fixture") return false;
   if (element.exported === true) return true;
   const st = element.methodStereotype;
-  return st === "controller" || st === "command" || st === "composition-root";
+  return (
+    st === "controller"
+    || st === "command"
+    || st === "composition-root"
+    || st === "non-void-command"
+    || st === "collaborational-command"
+  );
 }

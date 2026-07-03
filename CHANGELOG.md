@@ -2,6 +2,18 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.11.0] — 2026-07-03
+
+Adds — `non-void-command` and `collaborational-command` method stereotypes recognized as seeds by `defaultSeedSelector`. Closes Fathom row `3.1.1.1.9.3.r2` tail F6.
+
+### Changed
+
+- `defaultSeedSelector` returns true when `element.methodStereotype` is `"non-void-command"` or `"collaborational-command"` (in addition to the existing `controller` / `command` / `composition-root`). `@kepello/nodegraph-analysis`'s r2 side-effect derivation split plain `command` into these finer-grained variants — both are command-family entry points by construction, same as `command` itself.
+
+### Tests
+
+- 2 new regression tests: `non-void-command` qualifies, `collaborational-command` qualifies. RED witnessed pre-fix (`false !== true` on both assertions); GREEN after adding both stereotypes to the selector. 60/60 tests pass (was 58).
+
 ## [0.10.0] — 2026-05-28
 
 Adopt the per-overlay schema-version stamp (Fathom row 1.12.3). Exports `CAPABILITY_UNIT_SCHEMA_VERSION` (= 1, V1 baseline) and declares it on the overlay's `OverlayRegistration`.
