@@ -2,6 +2,19 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.12.0] — 2026-07-10
+
+`computeUnitId` migrated onto `@kepello/nodegraph-core`'s shared `shortContentHash` helper. Step 2 of Fathom row `0.3.2.f8` (identity-hash-helper-consolidation). Behavior-preserving — golden-pinned; no id change → no downstream cache concern from this package.
+
+### Changed
+
+- `computeUnitId` now calls `shortContentHash([entryContentHash, ...sortedOwned])` instead of hand-rolling the sha256-then-slice(0,16) assembly. Local `SHORT_HASH_LENGTH` const removed.
+- Peer dependency on `@kepello/nodegraph-core` retargeted `^5.7.1` → `^5.12.0` (introduces `shortContentHash`).
+
+### Tests
+
+- 1 new golden-pin regression test: fixed input `computeUnitId("entry-golden-hash", ["owned-c-hash", "owned-a-hash", "owned-b-hash"])` asserts the exact pre-migration literal `6a357fa82ec62e64`. Captured green against the un-migrated code, stayed green after the migration — byte-identity confirmed. 61/61 tests pass (was 60).
+
 ## [0.11.0] — 2026-07-03
 
 Adds — `non-void-command` and `collaborational-command` method stereotypes recognized as seeds by `defaultSeedSelector`. Closes Fathom row `3.1.1.1.9.3.r2` tail F6.

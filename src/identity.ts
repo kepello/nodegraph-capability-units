@@ -15,9 +15,7 @@
  *     contentHash — singleton units are first-class.
  */
 
-import { createHash } from "node:crypto";
-
-const SHORT_HASH_LENGTH = 16;
+import { shortContentHash } from "@kepello/nodegraph-core";
 
 /**
  * Compute a stable `unitId` from the entry's contentHash plus an
@@ -29,11 +27,5 @@ export function computeUnitId(
   ownedContentHashes: Iterable<string>,
 ): string {
   const sortedOwned = [...ownedContentHashes].sort();
-  const hasher = createHash("sha256");
-  hasher.update(entryContentHash);
-  for (const h of sortedOwned) {
-    hasher.update("\n");
-    hasher.update(h);
-  }
-  return hasher.digest("hex").slice(0, SHORT_HASH_LENGTH);
+  return shortContentHash([entryContentHash, ...sortedOwned]);
 }

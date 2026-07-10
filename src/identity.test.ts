@@ -49,3 +49,11 @@ test("computeUnitId — short fixed-width hex output", () => {
   const id = computeUnitId("entry", ["x", "y"]);
   assert.match(id, /^[0-9a-f]{16}$/);
 });
+
+test("computeUnitId — golden pin (byte-identity across the shortContentHash migration)", () => {
+  // Captured against the pre-migration sha256(entryHash + '\n' + sorted owned)
+  // assembly. Must stay byte-identical after routing through the shared
+  // shortContentHash helper — id churn here is a supersession storm.
+  const id = computeUnitId("entry-golden-hash", ["owned-c-hash", "owned-a-hash", "owned-b-hash"]);
+  assert.equal(id, "6a357fa82ec62e64");
+});
