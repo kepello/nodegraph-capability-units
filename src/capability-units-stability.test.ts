@@ -42,8 +42,9 @@ import type { CapabilityUnitMetadata } from "./types.js";
  *   - Mixed languages: alpha = typescript, beta = swift — language field
  *     uniformity check.
  *
- * Stereotype-driven seeds (controller / command / composition-root) also
- * fire via the default selector — `delta` gets methodStereotype=controller
+ * Role-driven seeds also fire via the default selector — `delta` gets
+ * methodRole="entry-command" (the `@kepello/nodegraph-analysis` role
+ * projection covering controller / command / composition-root / etc.)
  * without being exported, ensuring the selector's OR branch is exercised.
  */
 function fixture(): { elements: ElementForSeeding[]; callEdges: CallEdge[] } {
@@ -51,7 +52,7 @@ function fixture(): { elements: ElementForSeeding[]; callEdges: CallEdge[] } {
     { id: "alpha", name: "alpha", contentHash: "ch-alpha", exported: true, language: "typescript" },
     { id: "beta", name: "beta", contentHash: "ch-beta", exported: true, language: "swift" },
     { id: "gamma", name: "gamma", contentHash: "ch-gamma", exported: true, language: "typescript" },
-    { id: "delta", name: "delta", contentHash: "ch-delta", methodStereotype: "controller", language: "typescript" },
+    { id: "delta", name: "delta", contentHash: "ch-delta", methodRole: "entry-command", language: "typescript" },
     { id: "privateOne", name: "privateOne", contentHash: "ch-private-one", language: "typescript" },
     { id: "shared", name: "shared", contentHash: "ch-shared", language: "typescript" },
     { id: "mid", name: "mid", contentHash: "ch-mid", language: "typescript" },

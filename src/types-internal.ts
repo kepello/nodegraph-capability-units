@@ -25,11 +25,23 @@ export interface ElementForSeeding {
   exported?: boolean;
   /**
    * Optional L1 method stereotype from `@kepello/nodegraph-analysis`.
-   * Default seed selector treats `controller` / `command` as seed candidates.
-   * Other values (`accessor-shaped`, `command`, etc.) are accepted as
-   * opaque strings — the package doesn't enforce the L1 enum.
+   * No longer read by `defaultSeedSelector` (migrated to `methodRole`
+   * below, Fathom row stereotype-vocabulary-drift) — kept on this type
+   * only in case a future caller needs the raw value; currently unread
+   * anywhere in this package. Accepted as an opaque string — the package
+   * doesn't enforce the L1 enum.
    */
   methodStereotype?: string;
+  /**
+   * Optional L1 method-role from `@kepello/nodegraph-analysis` —
+   * `MethodRole`'s semantic-role projection of `methodStereotype`
+   * (`"entry-command" | "mutator" | "factory" | "accessor" |
+   * "test-fixture" | "other"`). Default seed selector treats
+   * `"entry-command"` as a seed candidate and `"test-fixture"` as a
+   * hard rejection. Accepted as an opaque string — the package doesn't
+   * depend on `@kepello/nodegraph-analysis` and doesn't enforce the enum.
+   */
+  methodRole?: string;
 }
 
 /**

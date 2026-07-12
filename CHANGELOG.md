@@ -2,6 +2,22 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.13.0] — 2026-07-11
+
+`defaultSeedSelector` migrated off its hand-maintained raw-stereotype admit-list onto the `@kepello/nodegraph-analysis` `methodRole` contract (`nodegraph-analysis@3.60.0`) — the raw list had been hand-patched TWICE as the stereotype vocabulary grew (once for `composition-root`, once for `non-void-command` / `collaborational-command`), the proof case for the stereotype-vocabulary-drift class. Behavior-identical today — `entry-command` is defined to cover exactly the five values the list used to enumerate by hand — and drift-proof going forward: a future stereotype addition only needs an edit to `nodegraph-analysis`'s `METHOD_ROLE` table, never this selector.
+
+### Changed
+
+- `defaultSeedSelector` (`src/seeding.ts`) now reads `element.methodRole === "entry-command"` (was: membership test against `{controller, command, composition-root, non-void-command, collaborational-command}`) and rejects `element.methodRole === "test-fixture"` (was: `element.methodStereotype === "test-fixture"`). The `exported === true` branch is unchanged.
+- `ElementForSeeding` (`src/types-internal.ts`) gains `methodRole?: string` — the `@kepello/nodegraph-analysis` L1 method-role projection, threaded opaque (this package has no dependency on `nodegraph-analysis`). `methodStereotype?: string` stays on the type but is no longer read anywhere in this package — kept for now in case a future caller needs the raw value; flagged as a residual for the orchestrator to consider removing.
+
+### Tests
+
+- 10 tests in `seeding.test.ts` migrated from `methodStereotype`-keyed fixtures to `methodRole`-keyed fixtures (`entry-command` qualifies, `accessor`/`other` do not, `test-fixture` rejected with/without `exported`).
+- 1 new guard test: asserts `seeding.ts` contains no raw-stereotype string-literal comparison and no `.methodStereotype` property read — fails loud if a future edit regrows a raw admit-list.
+- `capability-units-stability.test.ts` fixture updated (`delta`'s seed signal is now `methodRole: "entry-command"` instead of `methodStereotype: "controller"`) to keep exercising the selector's role-based OR branch.
+- RED witnessed pre-migration: `entry-command` qualification, `test-fixture`-while-exported rejection, and the raw-list guard all failed against the un-migrated selector (3 of 10 in `seeding.test.ts`). GREEN after the migration. 59/59 tests pass (was 61 — 12 stereotype-specific tests collapsed into 10 role-based tests, net include the new guard).
+
 ## [0.12.0] — 2026-07-10
 
 `computeUnitId` migrated onto `@kepello/nodegraph-core`'s shared `shortContentHash` helper. Step 2 of Fathom row `0.3.2.f8` (identity-hash-helper-consolidation). Behavior-preserving — golden-pinned; no id change → no downstream cache concern from this package.
