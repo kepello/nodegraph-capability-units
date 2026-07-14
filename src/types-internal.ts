@@ -42,6 +42,21 @@ export interface ElementForSeeding {
    * depend on `@kepello/nodegraph-analysis` and doesn't enforce the enum.
    */
   methodRole?: string;
+  /**
+   * Every non-administrative L0 facet the substrate carries for this
+   * element (annotations, baseTypes, isStatic, scalars, ...), projected
+   * by the caller's shared `projectElementFacets` helper (Fathom row
+   * `overlay-projection-discards-14-of-19-facets`, 3.1.0.7). Plain
+   * `Record<string, unknown>` — this package has no peer-dependency on
+   * `@kepello/nodegraph-analysis` (same decoupling rationale as
+   * `methodStereotype`/`methodRole` above). Currently unconsumed by
+   * `computeCapabilityUnits` — this row makes the facts ARRIVE; wiring a
+   * consumer is later work. Optional, not required (unlike
+   * `overridesByTarget` on the L6 `PatternContext`): making it required
+   * would force editing every hand-built `ElementForSeeding` literal
+   * across this package's test suite for a field nothing reads yet.
+   */
+  facets?: Readonly<Record<string, unknown>>;
 }
 
 /**

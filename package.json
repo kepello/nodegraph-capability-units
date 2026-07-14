@@ -1,6 +1,6 @@
 {
   "name": "@kepello/nodegraph-capability-units",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Recovered capability-unit overlay for @kepello/nodegraph: entry-rooted closures with strict-ownership boundaries. Second layer of the Layered Code Abstraction arc.",
   "type": "module",
   "main": "dist/index.js",

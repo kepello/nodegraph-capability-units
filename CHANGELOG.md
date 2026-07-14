@@ -2,6 +2,18 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.14.0] — 2026-07-14
+
+Fathom row `overlay-projection-discards-14-of-19-facets` (3.1.0.7) — `fathom-cli`'s abstractions runner used to hand-project each L0 element down to `id`/`name`/`contentHash`/`language`/`exported`/`methodStereotype`/`methodRole` before calling `computeCapabilityUnits`. Adds the field this row's shared facet bag lands on; `computeCapabilityUnits`/`defaultSeedSelector` are unchanged (`facets` is not read by this package).
+
+### Added
+
+- `ElementForSeeding.facets?: Readonly<Record<string, unknown>>` — the full L0 facet set (`@kepello/nodegraph-analysis`'s `projectElementFacets`), when the caller supplies it. Plain structural type — no new peer-dependency (same decoupling rationale as `methodStereotype`/`methodRole` above). Optional, not required: making it required would force editing every hand-built `ElementForSeeding` literal across this package's ~1,500-line test suite for a field nothing reads yet.
+
+### Tests
+
+Suite unchanged: 59/59 pass. `npm run build` clean.
+
 ## [0.13.0] — 2026-07-11
 
 `defaultSeedSelector` migrated off its hand-maintained raw-stereotype admit-list onto the `@kepello/nodegraph-analysis` `methodRole` contract (`nodegraph-analysis@3.60.0`) — the raw list had been hand-patched TWICE as the stereotype vocabulary grew (once for `composition-root`, once for `non-void-command` / `collaborational-command`), the proof case for the stereotype-vocabulary-drift class. Behavior-identical today — `entry-command` is defined to cover exactly the five values the list used to enumerate by hand — and drift-proof going forward: a future stereotype addition only needs an edit to `nodegraph-analysis`'s `METHOD_ROLE` table, never this selector.
