@@ -1,9 +1,9 @@
 /**
- * Disposition-layer wave 3a (Fathom row 3.1.8.4). Pins:
+ * Disposition-layer wave 4 (Fathom row 3.1.8.4, BREAKING). Pins:
  *
- *   - `insertUnit` emits `analysis-disposition` edges ADDITIVELY,
- *     alongside the existing `entry`/`composes`/`uses` membership edges
- *     (both families coexist until wave 4 retires membership).
+ *   - `insertUnit` no longer emits the legacy `entry`/`composes`/`uses`
+ *     membership edges — `analysis-disposition` edges are the SOLE
+ *     membership record (wave 3a's coexistence period is over).
  *   - Kinds map 1:1: `entry` → `["entry"]`, `composes` → `["composes"]`,
  *     `uses` → `["uses"]` — no collapse case naturally occurs at L2
  *     because `ownedElementIds` structurally excludes the entry (see
@@ -11,16 +11,28 @@
  *     set).
  *   - The entry-target-∈-owned-set collapse shape is PINNED regardless:
  *     `insertUnit`'s public contract doesn't itself enforce the
- *     exclusion, and the wave-1 `recordDispositions` grouping already
- *     handles it generically (group-by (source, target), merge kinds).
- *     A pathological input where an owned element id equals the entry
+ *     exclusion, and `recordDispositions`'s grouping already handles it
+ *     generically (group-by (source, target), merge kinds). A
+ *     pathological input where an owned element id equals the entry
  *     element id collapses to ONE edge, `metadata.kinds` sorted
  *     `["composes", "entry"]`, subtype/primary `"entry"` (precedence 3
  *     beats `composes`'s 4 — see `nodegraph-dispositions`'s
  *     `PRIMARY_KIND_PRECEDENCE`).
  *   - Disposition edges resolve dangling (targetRef) members exactly
- *     like the membership edges they parallel.
+ *     like the membership edges they replace.
  *   - Re-inserting an unchanged unit doesn't duplicate disposition edges.
+ *   - DRIFT PARITY: `recordDispositions`'s per-pair kind merge is
+ *     ADDITIVE ONLY — it never evicts a target that fell out of the
+ *     desired set, nor sheds a kind a target no longer carries.
+ *     `reconcileDispositions` (overlay.ts) is what makes the live
+ *     disposition-edge set track current membership; the tests below
+ *     exercise the three drift shapes it must handle: a departed
+ *     member, a changed entry, and a target whose kind changes (moved
+ *     from owned to used) — all under an UNCHANGED unit contentHash, the
+ *     one case the substrate's own supersede-cascade can't rescue
+ *     (see `overlay.ts`'s class doc comment) — plus `renameUnit`,
+ *     which the substrate's cascade actively BREAKS unless the caller
+ *     re-reconciles after `supersedeNode`.
  */
 
 import { test } from "node:test";
@@ -29,17 +41,12 @@ import { GraphLayerImpl, type GraphLayer } from "@kepello/nodegraph-core";
 import { InMemoryBackend } from "@kepello/nodegraph-core/in-memory";
 import { ANALYSIS_DISPOSITION_EDGE_TYPE } from "@kepello/nodegraph-dispositions";
 import { makeCapabilityUnitOverlay } from "./overlay.js";
-import {
-  COMPOSES_EDGE_TYPE,
-  ENTRY_EDGE_TYPE,
-  USES_EDGE_TYPE,
-} from "./types.js";
 
 function makeGraph(): GraphLayer {
   return new GraphLayerImpl(new InMemoryBackend());
 }
 
-test("insertUnit — both edge families exist: membership AND analysis-disposition", () => {
+test("insertUnit — legacy membership edges are NOT emitted; analysis-disposition is the sole record", () => {
   const graph = makeGraph();
   const overlay = makeCapabilityUnitOverlay(graph);
   const node = overlay.insertUnit({
@@ -52,18 +59,23 @@ test("insertUnit — both edge families exist: membership AND analysis-dispositi
     usedElementIds: ["logActivity"],
   });
 
-  // Membership edges (unchanged, still emitted).
+  // Legacy membership edges — RETIRED, wave 4. Literal type strings
+  // (not imported constants — `ENTRY_EDGE_TYPE` / `COMPOSES_EDGE_TYPE` /
+  // `USES_EDGE_TYPE` were deleted from `types.ts` along with emission).
   assert.equal(
-    graph.edgesFrom(node.id, { type: ENTRY_EDGE_TYPE, includeDangling: true }).length,
-    1,
+    graph.edgesFrom(node.id, { type: "entry", includeDangling: true }).length,
+    0,
+    "entry edges must not be emitted",
   );
   assert.equal(
-    graph.edgesFrom(node.id, { type: COMPOSES_EDGE_TYPE, includeDangling: true }).length,
-    2,
+    graph.edgesFrom(node.id, { type: "composes", includeDangling: true }).length,
+    0,
+    "composes edges must not be emitted",
   );
   assert.equal(
-    graph.edgesFrom(node.id, { type: USES_EDGE_TYPE, includeDangling: true }).length,
-    1,
+    graph.edgesFrom(node.id, { type: "uses", includeDangling: true }).length,
+    0,
+    "uses edges must not be emitted",
   );
 
   // Disposition edges — one per (unit, target) pair: entry + 2 owned + 1 used = 4.
@@ -182,4 +194,157 @@ test("insertUnit — re-inserting an unchanged unit does not duplicate dispositi
     includeDangling: true,
   });
   assert.equal(dispositions.length, 2, "entry + composes(m1) — no duplicates from the second insert");
+});
+
+// --- Drift parity (3.1.8.4 wave 4) -----------------------------------
+//
+// All three cases below hold the unit's `contentHash` UNCHANGED across
+// the two `insertUnit` calls, so the node id stays the same and the
+// substrate's own supersede-cascade (which auto-tombstones a prior
+// tip's outgoing edges) never fires. This is deliberate: it isolates
+// the ONE case `reconcileDispositions` exists for. `recordDispositions`
+// called directly on each call's fresh candidate batch — the wave-3a
+// shape, before `reconcileDispositions` existed — would NOT tombstone a
+// departed target's edge (no candidate touches that (source, target)
+// pair, so it's simply never visited) and would ADD a moved target's
+// new kind onto its existing edge rather than replace it (the merge is
+// additive-only). Both are silent membership drift once disposition
+// edges are the sole read path.
+
+test("insertUnit — same contentHash, shrunken ownedElementIds: departed member's disposition edge is tombstoned", () => {
+  const graph = makeGraph();
+  const overlay = makeCapabilityUnitOverlay(graph);
+  overlay.insertUnit({
+    unitId: "uid-drift-shrink",
+    entryElementId: "e",
+    entryName: "e",
+    name: "e",
+    contentHash: "h-stable",
+    ownedElementIds: ["m1", "m2"],
+    usedElementIds: [],
+  });
+  const after = overlay.insertUnit({
+    unitId: "uid-drift-shrink",
+    entryElementId: "e",
+    entryName: "e",
+    name: "e",
+    contentHash: "h-stable",
+    ownedElementIds: ["m1"],
+    usedElementIds: [],
+  });
+
+  const members = overlay.membersOf("uid-drift-shrink").map((e) => e.targetRef);
+  assert.deepEqual(members.sort(), ["m1"], "m2 must be evicted, not just left un-re-added");
+
+  const dispositions = graph.edgesFrom(after.id, {
+    type: ANALYSIS_DISPOSITION_EDGE_TYPE,
+    includeDangling: true,
+  });
+  assert.equal(dispositions.length, 2, "entry(e) + composes(m1) only — m2's edge must be tombstoned, not merely absent from membersOf");
+});
+
+test("insertUnit — same contentHash, changed entryElementId: stale entry disposition edge is tombstoned", () => {
+  const graph = makeGraph();
+  const overlay = makeCapabilityUnitOverlay(graph);
+  overlay.insertUnit({
+    unitId: "uid-drift-entry",
+    entryElementId: "oldEntry",
+    entryName: "oldEntry",
+    name: "oldEntry",
+    contentHash: "h-stable",
+    ownedElementIds: [],
+    usedElementIds: [],
+  });
+  overlay.insertUnit({
+    unitId: "uid-drift-entry",
+    entryElementId: "newEntry",
+    entryName: "newEntry",
+    name: "newEntry",
+    contentHash: "h-stable",
+    ownedElementIds: [],
+    usedElementIds: [],
+  });
+
+  assert.equal(overlay.unitForEntry("oldEntry"), undefined, "stale entry must no longer resolve");
+  const resolved = overlay.unitForEntry("newEntry");
+  assert.ok(resolved, "new entry must resolve");
+  assert.equal(resolved!.metadata.unitId, "uid-drift-entry");
+});
+
+test("insertUnit — same contentHash, target moves from owned to used: kind is corrected, not accumulated", () => {
+  const graph = makeGraph();
+  const overlay = makeCapabilityUnitOverlay(graph);
+  overlay.insertUnit({
+    unitId: "uid-drift-kind",
+    entryElementId: "e",
+    entryName: "e",
+    name: "e",
+    contentHash: "h-stable",
+    ownedElementIds: ["shifted"],
+    usedElementIds: [],
+  });
+  const after = overlay.insertUnit({
+    unitId: "uid-drift-kind",
+    entryElementId: "e",
+    entryName: "e",
+    name: "e",
+    contentHash: "h-stable",
+    ownedElementIds: [],
+    usedElementIds: ["shifted"],
+  });
+
+  assert.deepEqual(
+    overlay.membersOf("uid-drift-kind").map((e) => e.targetRef),
+    [],
+    "shifted must no longer read as owned",
+  );
+  assert.deepEqual(
+    overlay.usedBy("uid-drift-kind").map((e) => e.targetRef),
+    ["shifted"],
+    "shifted must read as used",
+  );
+
+  const shiftedEdge = graph
+    .edgesFrom(after.id, { type: ANALYSIS_DISPOSITION_EDGE_TYPE, includeDangling: true })
+    .find((e) => e.targetRef === "shifted");
+  assert.ok(shiftedEdge, "shifted's disposition edge must exist");
+  assert.deepEqual(
+    shiftedEdge!.metadata,
+    { kinds: ["uses"] },
+    "kinds must be replaced, not accumulated to [composes, uses]",
+  );
+  assert.equal(shiftedEdge!.subtype, "uses");
+});
+
+test("renameUnit — preserves entry/composes/uses disposition edges across the metadata-only supersede", () => {
+  const graph = makeGraph();
+  const overlay = makeCapabilityUnitOverlay(graph);
+  overlay.insertUnit({
+    unitId: "uid-rename",
+    entryElementId: "e",
+    entryName: "e",
+    name: "e",
+    contentHash: "h1",
+    ownedElementIds: ["m1"],
+    usedElementIds: ["u1"],
+  });
+
+  const renamed = overlay.renameUnit("uid-rename", "Operator Override");
+  assert.equal(renamed.metadata.displayName, "Operator Override");
+
+  assert.equal(
+    overlay.unitForEntry("e")?.metadata.unitId,
+    "uid-rename",
+    "entry must still resolve after rename",
+  );
+  assert.deepEqual(
+    overlay.membersOf("uid-rename").map((e) => e.targetRef),
+    ["m1"],
+    "composes membership must survive the rename's supersedeNode cascade",
+  );
+  assert.deepEqual(
+    overlay.usedBy("uid-rename").map((e) => e.targetRef),
+    ["u1"],
+    "uses membership must survive the rename's supersedeNode cascade",
+  );
 });

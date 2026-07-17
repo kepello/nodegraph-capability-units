@@ -2,6 +2,27 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.16.0] — 2026-07-16
+
+**Fathom row 3.1.8.4 (disposition-layer wave 4, BREAKING) — the legacy `entry`/`composes`/`uses` membership edges are RETIRED. `analysis-disposition` edges (recorded via `@kepello/nodegraph-dispositions`'s `recordDispositions` since wave 3a/0.15.0) are now THE membership record.** Public API signatures are unchanged (`insertUnit`/`renameUnit`/`tombstoneUnit`/`membersOf`/`usedBy`/`unitForEntry`/`unitsThatUse`), but every read now resolves through `analysis-disposition` edges filtered by kinds-CONTAINS (never subtype equality — a target can carry `entry` as a non-primary kind on a collapsed multi-kind edge). Pre-prod: no migration path — `.fathom/graph.db` rebuilds on next `analyze`.
+
+### Changed
+
+- `insertUnit` no longer writes `entry`/`composes`/`uses` edges. Membership is now a `(target → kind set)` map reconciled onto the unit's outgoing `analysis-disposition` edges via a new `reconcileDispositions` (mirrors `nodegraph-domain-model`'s `reconcileDispositions` / `nodegraph-clusters`'s `reconcileDispositionEdges` idiom): a target whose kind set already matches is left untouched (no edge-id churn on unchanged re-analyze); a target that's gone or whose kind set changed is tombstoned outright before re-recording. This closes a real drift gap `recordDispositions`'s ADDITIVE-only per-pair kind merge otherwise leaves open — without an explicit tombstone-first step, a departed member's edge lingers forever and a target that moves role (e.g. owned → used) accumulates BOTH kinds on one edge instead of being corrected.
+- `renameUnit` now captures the prior tip's disposition-edge membership before calling `supersedeNode` and re-reconciles it onto the new tip afterward. **This fixes a pre-existing gap, not a wave-4 regression**: `supersedeNode` cascades a superseded node's outgoing edges to tombstoned (5.0.39 idiom), and `renameUnit` never re-emitted membership after supersede under either the old dedicated-edge-type scheme OR wave 3a's additive disposition scheme — a rename silently orphaned a unit's entire membership (verified: RED without the fix, `unitForEntry`/`membersOf`/`usedBy` all returned empty post-rename). Flagged here because wave 4 is what surfaced it (dedicated edge types were never read through the public API's `membersOf`/`usedBy` test coverage in a way that would have caught it either — this was a live, previously-undetected bug).
+- `membersOf` / `usedBy` / `unitForEntry` / `unitsThatUse` re-implemented over `analysis-disposition` edges, filtering by `metadata.kinds`-CONTAINS the relevant kind (`composes` / `uses` / `entry` / `uses` respectively) — never `subtype` equality, since a collapsed multi-kind edge's `subtype` names only the PRIMARY kind. `computeL2Coverage` (`queries.ts`) reads exclusively through `membersOf`/`usedBy` and required no code change — verified via its full existing test suite, not assumed.
+
+### Removed
+
+- `ENTRY_EDGE_TYPE`, `COMPOSES_EDGE_TYPE`, `USES_EDGE_TYPE` (`types.ts`, re-exported from `index.ts`) — dead now that nothing emits or reads the dedicated edge types they named. Swept the workspace for external consumers (`fathom-cli`, `fathom-mcp`): neither imports these constants or relies on a capability-unit-sourced `Edge`'s `.type`/`.subtype` being `"entry"`/`"composes"`/`"uses"` — only `unitForEntry`'s return VALUE is consumed, not the underlying edge shape. No source change needed in either downstream repo, but both should bump their `@kepello/nodegraph-capability-units` peer floor to `^0.16.0` and re-run their own suites before their next release.
+- `emitMembershipEdges` (private helper) — no longer has a caller.
+
+### Tests
+
+- `overlay-dispositions.test.ts`: the wave-3a coexistence pin ("both edge families exist") flipped to "legacy membership edges are NOT emitted" (RED witnessed against pre-fix `overlay.ts`: `entry`/`composes`/`uses` edge counts were 1/2/1, expected 0/0/0). 4 new drift-parity tests — same-`contentHash` re-insert with (a) a shrunken owned set, (b) a changed entry, (c) a target moving from owned to used (kind-correction, not accumulation) — plus (d) `renameUnit` preserving membership across its `supersedeNode` call. All 4 RED witnessed pre-fix (departed member survived, stale entry still resolved, moved target read as BOTH owned and used with `kinds: ["composes","uses"]`, and post-rename `unitForEntry`/`membersOf`/`usedBy` all returned empty). GREEN after wiring `reconcileDispositions`.
+- `overlay.test.ts`: the "persists metadata + entry/composes/uses edges" pin (SANCTIONED delta) reworked to assert on `analysis-disposition` edges + the public read API instead of the retired edge-type constants; every other test in the file exercises `membersOf`/`usedBy`/`unitForEntry`/`unitsThatUse` rather than raw edge types, so it carries over unchanged and exercises the disposition-backed re-implementation transparently.
+- Full suite: **67 pass** (was 63; +4 new drift tests, net +0 elsewhere — one test renamed/reworked in place, not added or removed). `npm run build` clean.
+
 ## [0.15.1] — 2026-07-16
 
 Peer-floor sync, 3.1.8.4 wave 3a/3b sibling bumps — no code change. `@kepello/nodegraph-dispositions` peer floor `^0.1.0` → `^0.2.0` (0.x caret — did not admit the installed `0.2.0` without the bump).

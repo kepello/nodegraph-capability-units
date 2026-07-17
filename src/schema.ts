@@ -21,7 +21,7 @@ export const CAPABILITY_UNIT_METADATA_SCHEMA: MetadataSchema = {
   type: "object",
   title: "Recovered capability unit",
   description:
-    "An entry-rooted closure: a public seed plus its strictly-owned helpers. Edges out: `entry` → seed element; `composes` → owned closure members; `uses` → elements called by the closure but not owned by it.",
+    "An entry-rooted closure: a public seed plus its strictly-owned helpers. Membership is recorded as `analysis-disposition` edges out: kind `entry` → seed element; kind `composes` → owned closure members; kind `uses` → elements called by the closure but not owned by it (Fathom row 3.1.8.4 wave 4).",
   required: ["kind", "unitId", "entryElementId", "name", "ownedCount"],
   properties: {
     kind: {

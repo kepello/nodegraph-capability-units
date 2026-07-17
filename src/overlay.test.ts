@@ -2,15 +2,25 @@
  * Overlay-implementation tests. Pins:
  *
  *   - registerOverlay is idempotent.
- *   - insertUnit persists metadata + entry / composes / uses edges.
+ *   - insertUnit persists metadata + entry / composes / uses
+ *     `analysis-disposition` edges.
  *   - insertUnit is idempotent on identical content-hash.
  *   - insertUnit supersedes on different content-hash.
  *   - renameUnit updates displayName, preserves identity.
  *   - tombstoneUnit removes from listUnits.
- *   - unitForEntry walks incoming entry edges.
- *   - unitsThatUse walks incoming uses edges.
- *   - membersOf returns composes edges.
- *   - usedBy returns uses edges.
+ *   - unitForEntry walks incoming entry-kind disposition edges.
+ *   - unitsThatUse walks incoming uses-kind disposition edges.
+ *   - membersOf returns composes-kind disposition edges.
+ *   - usedBy returns uses-kind disposition edges.
+ *
+ * Fathom row 3.1.8.4 wave 4 (SANCTIONED delta): the "persists metadata +
+ * entry / composes / uses edges" test below asserted on the now-retired
+ * dedicated `entry`/`composes`/`uses` edge types; reworked to assert on
+ * `analysis-disposition` edges instead. The other tests in this file
+ * exercise the overlay's public read API (`membersOf` / `usedBy` /
+ * `unitForEntry` / `unitsThatUse`), not raw edge types, so they carry
+ * over unchanged — the disposition-backed re-implementation is exercised
+ * transparently through them.
  */
 
 import { test } from "node:test";
@@ -20,6 +30,7 @@ import {
   type GraphLayer,
 } from "@kepello/nodegraph-core";
 import { InMemoryBackend } from "@kepello/nodegraph-core/in-memory";
+import { ANALYSIS_DISPOSITION_EDGE_TYPE } from "@kepello/nodegraph-dispositions";
 import {
   CAPABILITY_UNIT_DOMAIN,
   CAPABILITY_UNIT_METADATA_KIND,
@@ -28,11 +39,6 @@ import {
   CapabilityUnitOverlayImpl,
   makeCapabilityUnitOverlay,
 } from "./overlay.js";
-import {
-  COMPOSES_EDGE_TYPE,
-  ENTRY_EDGE_TYPE,
-  USES_EDGE_TYPE,
-} from "./types.js";
 
 function makeGraph(): GraphLayer {
   return new GraphLayerImpl(new InMemoryBackend());
@@ -45,7 +51,7 @@ test("registerOverlay — idempotent on repeated construction", () => {
   assert.ok(overlay);
 });
 
-test("insertUnit — persists metadata + entry / composes / uses edges", () => {
+test("insertUnit — persists metadata + entry / composes / uses analysis-disposition edges (3.1.8.4 wave 4)", () => {
   const graph = makeGraph();
   const overlay = makeCapabilityUnitOverlay(graph);
   const node = overlay.insertUnit({
@@ -62,13 +68,16 @@ test("insertUnit — persists metadata + entry / composes / uses edges", () => {
   assert.equal(node.metadata.ownedCount, 2);
   assert.equal(node.metadata.usedCount, 1);
 
-  // Edges out
-  const entry = graph.edgesFrom(node.id, { type: ENTRY_EDGE_TYPE, includeDangling: true });
-  const composes = graph.edgesFrom(node.id, { type: COMPOSES_EDGE_TYPE, includeDangling: true });
-  const uses = graph.edgesFrom(node.id, { type: USES_EDGE_TYPE, includeDangling: true });
-  assert.equal(entry.length, 1);
-  assert.equal(composes.length, 2);
-  assert.equal(uses.length, 1);
+  // Edges out — analysis-disposition is the sole membership record
+  // (legacy dedicated entry/composes/uses edge types retired, wave 4).
+  const dispositions = graph.edgesFrom(node.id, {
+    type: ANALYSIS_DISPOSITION_EDGE_TYPE,
+    includeDangling: true,
+  });
+  assert.equal(dispositions.length, 4, "entry + 2 composes + 1 uses");
+  assert.equal(overlay.unitForEntry("createUser")?.metadata.unitId, "uid-1");
+  assert.equal(overlay.membersOf("uid-1").length, 2);
+  assert.equal(overlay.usedBy("uid-1").length, 1);
 });
 
 test("insertUnit — idempotent on identical content-hash", () => {

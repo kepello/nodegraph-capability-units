@@ -13,9 +13,6 @@ export {
 
 // Types
 export {
-  COMPOSES_EDGE_TYPE,
-  ENTRY_EDGE_TYPE,
-  USES_EDGE_TYPE,
   type CapabilityUnitInput,
   type CapabilityUnitMetadata,
   type CapabilityUnitNode,

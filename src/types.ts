@@ -1,8 +1,15 @@
 /**
  * Capability-unit overlay public types. Each unit is an entry-rooted
  * closure of L0 element nodes — a public seed plus the strictly-owned
- * helpers it calls. Shared helpers (used by multiple seeds) surface as
- * `uses` edges rather than being absorbed into any unit's body.
+ * helpers it calls. Shared helpers (used by multiple seeds) surface via
+ * the `uses` disposition kind rather than being absorbed into any
+ * unit's body.
+ *
+ * Fathom row 3.1.8.4 wave 4 (BREAKING): membership is recorded as
+ * `analysis-disposition` edges (kinds `entry` / `composes` / `uses`),
+ * not the dedicated `entry` / `composes` / `uses` edge types this
+ * package emitted through wave 3a — those edge-type constants are
+ * retired; see `overlay.ts`'s class doc comment.
  */
 
 import type { Edge, Node } from "@kepello/nodegraph-core";
@@ -66,8 +73,9 @@ export interface CapabilityUnitOverlay {
 
   /**
    * Insert (or upsert) a capability-unit node + its `entry` /
-   * `composes` / `uses` edges. Returns the persisted node. Idempotent
-   * on identical content-hash; supersedes on content change.
+   * `composes` / `uses` `analysis-disposition` edges. Returns the
+   * persisted node. Idempotent on identical content-hash; supersedes on
+   * content change.
    */
   insertUnit(input: CapabilityUnitInput): CapabilityUnitNode;
 
@@ -89,26 +97,20 @@ export interface CapabilityUnitOverlay {
   unitForEntry(entryElementId: string): CapabilityUnitNode | undefined;
 
   /**
-   * Outgoing `composes` edges for a unit — the elements it strictly
-   * owns. Returns substrate edges; `targetId` set for resolved members,
-   * `targetRef` for unresolved (dangling) ones.
+   * `analysis-disposition` edges carrying kind `composes` for a unit —
+   * the elements it strictly owns. Returns substrate edges; `targetId`
+   * set for resolved members, `targetRef` for unresolved (dangling)
+   * ones.
    */
   membersOf(unitId: string): Edge[];
 
-  /** Outgoing `uses` edges — shared elements the closure references. */
+  /** `analysis-disposition` edges carrying kind `uses` — shared elements the closure references. */
   usedBy(unitId: string): Edge[];
 
   /**
    * Resolve every unit whose closure uses the given element (incoming
-   * `uses` edges). Useful for "what units would break if I changed
-   * this shared helper?" queries.
+   * `analysis-disposition` edges carrying kind `uses`). Useful for
+   * "what units would break if I changed this shared helper?" queries.
    */
   unitsThatUse(elementId: string): CapabilityUnitNode[];
 }
-
-/** Edge type for entry seed → unit. */
-export const ENTRY_EDGE_TYPE = "entry";
-/** Edge type for unit → strictly-owned member. */
-export const COMPOSES_EDGE_TYPE = "composes";
-/** Edge type for unit → shared (used) element. */
-export const USES_EDGE_TYPE = "uses";
