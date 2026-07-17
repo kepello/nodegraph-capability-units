@@ -2,6 +2,14 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.15.1] — 2026-07-16
+
+Peer-floor sync, 3.1.8.4 wave 3a/3b sibling bumps — no code change. `@kepello/nodegraph-dispositions` peer floor `^0.1.0` → `^0.2.0` (0.x caret — did not admit the installed `0.2.0` without the bump).
+
+### Tests
+
+Suite unchanged: 63/63 pass. `npm run build` clean.
+
 ## [0.15.0] — 2026-07-16
 
 **Fathom row 3.1.8.4 (disposition-layer wave 3a) — `insertUnit` now ALSO records `analysis-disposition` edges for its `entry`/`composes`/`uses` membership, via `@kepello/nodegraph-dispositions@0.1.0`'s `recordDispositions`. ADDITIVE: membership edges are unchanged and unremoved — both families coexist until wave 4 retires membership.** Design: `planning/plans/design/disposition-layer.md` §S2/S3, Q1–Q4 rulings, §S7 wave 3a.
