@@ -2,6 +2,25 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.15.0] — 2026-07-16
+
+**Fathom row 3.1.8.4 (disposition-layer wave 3a) — `insertUnit` now ALSO records `analysis-disposition` edges for its `entry`/`composes`/`uses` membership, via `@kepello/nodegraph-dispositions@0.1.0`'s `recordDispositions`. ADDITIVE: membership edges are unchanged and unremoved — both families coexist until wave 4 retires membership.** Design: `planning/plans/design/disposition-layer.md` §S2/S3, Q1–Q4 rulings, §S7 wave 3a.
+
+### Added
+
+- `insertUnit` builds one `DispositionCandidate` per entry/owned/used target (kinds `entry`/`composes`/`uses`, 1:1 with the existing edge types) and calls `dispositionOverlay.recordDispositions(mutator, candidates)` using THIS overlay's own `capability-unit`-domain mutator (the wave-1 caller-mutator ruling — `analysis-disposition` edges must source in the DERIVED ITEM's own domain, never `disposition`'s). Target resolution (`targetId` for a live node, `targetRef` natural-key form for a dangling one) mirrors the existing membership-edge resolution exactly.
+- `@kepello/nodegraph-dispositions` dependency: `^0.1.0` peer + `file:../nodegraph-dispositions` dev, matching this repo's existing `@kepello/nodegraph-core` dep shape.
+
+### Notes
+
+- **The entry-target-∈-owned-set collapse shape does NOT occur in production**: `computeCapabilityUnits`'s BFS structurally excludes the seed from its own reached set (`closure.ts`), and `ComputedUnit.ownedElementIds`/`CapabilityUnitInput.ownedElementIds` are documented to exclude the entry — so no real `insertUnit` call ever passes overlapping entry/owned target ids. `insertUnit`'s type contract doesn't itself enforce the exclusion, though, so the collapse behavior is pinned regardless with a direct pathological-input fixture: wave-1's `recordDispositions` groups by (source, target) generically, so an overlapping pair collapses to ONE edge, `metadata.kinds: ["composes", "entry"]`, `subtype: "entry"` (precedence 3 beats `composes`'s 4) — no special-case code needed in this package.
+- No refusal work this wave (measured L2 residual is 0 per the wave-2 corpus run; seed non-matches are expected non-selections per the design's negative-scoping ruling, not drops).
+
+### Tests
+
+- `overlay-dispositions.test.ts` (new, 4 tests): (a) `insertUnit` emits both edge families — 4 `entry`/`composes`(×2)/`uses` disposition edges alongside the unchanged membership edges, each carrying `subtype` + `metadata.kinds` matching its single kind; (b) a live-node target resolves `targetId` (not `targetRef`); (c) the entry-target-∈-owned-set overlap fixture (see Notes) — one collapsed edge, `kinds: ["composes","entry"]`, `subtype: "entry"`; (d) re-inserting an unchanged unit does not duplicate disposition edges. RED witnessed pre-fix: all 4 failed against the un-modified `overlay.ts` (0 `analysis-disposition` edges found where 1/1/1/2 were expected). GREEN after wiring `recordDispositions` into `doInsertUnit`.
+- Full suite: **63 pass** (was 59, +4). `npm run build` clean.
+
 ## [0.14.0] — 2026-07-14
 
 Fathom row `overlay-projection-discards-14-of-19-facets` (3.1.0.7) — `fathom-cli`'s abstractions runner used to hand-project each L0 element down to `id`/`name`/`contentHash`/`language`/`exported`/`methodStereotype`/`methodRole` before calling `computeCapabilityUnits`. Adds the field this row's shared facet bag lands on; `computeCapabilityUnits`/`defaultSeedSelector` are unchanged (`facets` is not read by this package).

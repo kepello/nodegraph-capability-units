@@ -7,9 +7,23 @@
  *   - `entry`    → seed element
  *   - `composes` → strictly-owned member (one edge per owned element)
  *   - `uses`     → shared element the closure references
+ *
+ * Fathom row 3.1.8.4 wave 3a (disposition-layer, ADDITIVE): `insertUnit`
+ * ALSO records `analysis-disposition` edges for the same three
+ * relationships via `@kepello/nodegraph-dispositions`'s
+ * `recordDispositions`, using THIS overlay's own `capability-unit`-
+ * domain mutator (the caller-mutator ruling — wave 1's `overlay.ts` doc
+ * comment: `analysis-disposition` edges are sourced in the DERIVED
+ * ITEM's own domain, never `disposition`'s). Membership edges above
+ * stay unchanged; both families coexist until wave 4 retires membership.
  */
 
 import type { Edge, GraphLayer, GraphMutator, Node } from "@kepello/nodegraph-core";
+import {
+  makeDispositionOverlay,
+  type DispositionCandidate,
+  type DispositionOverlay,
+} from "@kepello/nodegraph-dispositions";
 import {
   CAPABILITY_UNIT_DOMAIN,
   CAPABILITY_UNIT_INDEXES,
@@ -29,6 +43,7 @@ import {
 
 export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
   private readonly mutator: GraphMutator<typeof CAPABILITY_UNIT_DOMAIN>;
+  private readonly dispositions: DispositionOverlay;
 
   constructor(private readonly graph: GraphLayer) {
     // Per Fathom row 5.0.42: registerOverlay returns the domain-scoped
@@ -39,6 +54,12 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
       metadataSchema: CAPABILITY_UNIT_METADATA_SCHEMA,
       indexes: CAPABILITY_UNIT_INDEXES,
     });
+    // Wave 3a: this overlay's own disposition-overlay handle. Registers
+    // the shared `disposition` domain idempotently (5.0.42) — writes
+    // through it are used only for `recordDispositions`'s internal
+    // reason/ledger-node bookkeeping, never for the edges this overlay
+    // authors itself (see class doc comment).
+    this.dispositions = makeDispositionOverlay(this.graph);
   }
 
   insertUnit(input: CapabilityUnitInput): CapabilityUnitNode {
@@ -114,6 +135,33 @@ export class CapabilityUnitOverlayImpl implements CapabilityUnitOverlay {
       input.usedElementIds,
       USES_EDGE_TYPE,
     );
+
+    // Wave 3a (3.1.8.4, ADDITIVE): the same three relationships, again,
+    // as `analysis-disposition` edges. `recordDispositions` groups by
+    // (sourceId, target) and collapses same-pair candidates into one
+    // edge (`metadata.kinds` = all applicable kinds, `subtype` = the
+    // primary kind by precedence) — this handles the entry-target-∈-
+    // owned-set overlap shape for free, should it ever occur (it does
+    // not today: `ownedElementIds` structurally excludes the entry, see
+    // `closure.ts`).
+    const dispositionCandidates: DispositionCandidate[] = [
+      { sourceId: node.id, kind: "entry", ...targetShape(this.graph, input.entryElementId) },
+      ...input.ownedElementIds.map(
+        (id): DispositionCandidate => ({
+          sourceId: node.id,
+          kind: "composes",
+          ...targetShape(this.graph, id),
+        }),
+      ),
+      ...input.usedElementIds.map(
+        (id): DispositionCandidate => ({
+          sourceId: node.id,
+          kind: "uses",
+          ...targetShape(this.graph, id),
+        }),
+      ),
+    ];
+    this.dispositions.recordDispositions(this.mutator, dispositionCandidates);
 
     return asUnit(node);
   }
@@ -297,6 +345,19 @@ function buildMetadata(input: CapabilityUnitInput): CapabilityUnitMetadata {
 
 function asUnit(node: Node): CapabilityUnitNode {
   return node as CapabilityUnitNode;
+}
+
+/**
+ * Resolve a disposition candidate's target: `targetId` when `id` names a
+ * live node, `targetRef` (natural-key form) otherwise — same
+ * byId-then-byRef resolution `doInsertUnit`/`emitMembershipEdges` use
+ * for the parallel membership edges.
+ */
+function targetShape(
+  graph: GraphLayer,
+  id: string,
+): { targetId: string } | { targetRef: string } {
+  return graph.getNodeById(id) !== undefined ? { targetId: id } : { targetRef: id };
 }
 
 /** Convenience factory mirroring the analysis / cluster overlay patterns. */
