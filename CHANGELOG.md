@@ -2,6 +2,18 @@
 
 All notable changes to `@kepello/nodegraph-capability-units`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.16.1] — 2026-07-19
+
+Peer-floor sync, 5.0.139 sweep-gap cascade — no code change. `@kepello/nodegraph-dispositions` peer floor `^0.2.0` → `^0.3.0`: `0.3.0` is the first `nodegraph-dispositions` release to stamp `owner` on the disposition edges it writes (Fathom row 5.0.139), and the 0.x caret doesn't admit the minor bump without this floor update.
+
+### Changed
+
+- `package.json` — `@kepello/nodegraph-dispositions` peer floor `^0.2.0` → `^0.3.0`.
+
+### Tests
+
+Suite unchanged: 67/67 pass. `npm run build` clean.
+
 ## [0.16.0] — 2026-07-16
 
 **Fathom row 3.1.8.4 (disposition-layer wave 4, BREAKING) — the legacy `entry`/`composes`/`uses` membership edges are RETIRED. `analysis-disposition` edges (recorded via `@kepello/nodegraph-dispositions`'s `recordDispositions` since wave 3a/0.15.0) are now THE membership record.** Public API signatures are unchanged (`insertUnit`/`renameUnit`/`tombstoneUnit`/`membersOf`/`usedBy`/`unitForEntry`/`unitsThatUse`), but every read now resolves through `analysis-disposition` edges filtered by kinds-CONTAINS (never subtype equality — a target can carry `entry` as a non-primary kind on a collapsed multi-kind edge). Pre-prod: no migration path — `.fathom/graph.db` rebuilds on next `analyze`.
